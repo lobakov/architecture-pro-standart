@@ -1,0 +1,51 @@
+@startuml
+!include <C4/C4_Container>
+
+title Диаграмма контейнеров "Онлайн системы открытия депозитов" банка "Стандарт" в разрезе интеграции с колл-центрами
+
+System_Boundary(Bank, "Банк Стандарт") {
+    System_Boundary(DepositSystem, "Платформа депозитов") {
+        Container(DepositDirectory, "Справочник депозитов", "Java + Spring Boot", "Позволяет настраивать и получать ставки по депозитам")
+        Container(DepositAgent, "Сервис оформления заявок на депозиты", "Java + Spring Boot", "Предоставляет функционал оформления заявок")
+        Container(MessageRouter, "Маршрутизатор сообщений", "Java + Spring Boot", "На основе настроек принимает решение об отправке заявок в колл-центр партнера")
+        Container(NotificationGate, "Сервис для коммуникации с партнером", "Java + Spring Boot", "Выгружает файлы в S3, отправляет нотификации партнеру по имейл")
+        Container(Messaging, "Брокер сообщений", "Kafka", "Асинхронный обмен соощениями")
+    }
+
+    Container(MailGate, "Почтовый Шлюз", "sendmail", "Отправляет почтовые сообщения партнерам")
+    Container(Storage, "Хранилище для обмена файлами", "S3", "Хранит файлы со ставками по депозитам для партнера")
+
+    System_Boundary(BankCallCenter, "Система колл-центра банка") {
+        Person(BankCallCenterManager, "Менеджер колл-центра банка", "Консультирует клиентов по телефону")
+
+        Container(BankCallCenterPanel, "Веб-интерфейс", "React.js", "Интерфейс системы для менеджеров колл-центра")
+        Container(BankCallCenterSystem, "Ядро системы колл-центра", "Java + Spring Boot", "Реализует основной функционал системы колл-центра")
+        ContainerDb(BankCallCenterDb, "БД колл-центра", "PosrgreSQL", "Хранит даные по заявкам")
+    }
+}
+
+System_Boundary(PartnerCallCenter, "Колл-центр партнера") {
+    Person(PartnerCallCenterManager, "Менеджер колл-центра партнера", "Консультирует клиентов по телефону")
+    System_Ext(PartnerCallCenterSystem, "Система колл-центра партнера", "Хранит информацию по заявкам клиентов, ставки депозитов и скрипты для работы менеджеров")
+}
+
+Rel_D(DepositAgent, MessageRouter, "Отправляет заявки в колл-центры")
+Rel_D(MessageRouter, Messaging, "Отправляет заявки в колл-центры")
+Rel_D(DepositDirectory, Messaging, "Отправляет ставки по депозитам в колл-центры")
+
+Rel_L(Messaging, BankCallCenterSystem, "Передает информацию по депозитам и данные заявок")
+Rel_R(Messaging, NotificationGate, "Передает информацию по депозитам и данные заявок")
+
+Rel(NotificationGate, MailGate, "Передает оповещения о выгрузке и данные заявок")
+Rel(NotificationGate, Storage, "Выгружает ставки по депозитам в файлы в S3")
+Rel(NotificationGate, Messaging, "Отправляет логи")
+
+Rel_R(MailGate, PartnerCallCenterManager, "Передает оповещения о выгрузке и данные заявок")
+Rel_L(PartnerCallCenterSystem, Storage, "Забирает файлы со ставками по депозитам")
+Rel_U(PartnerCallCenterSystem, PartnerCallCenterManager, "Предоставляет ставки по депозитам, данные по заявкам и скрипты для консультации клиентов")
+
+Rel_D(BankCallCenterManager, BankCallCenterPanel, "Получает информацию по депозитам, скрипты и данные заявок")
+Rel_D(BankCallCenterPanel, BankCallCenterSystem, "Забирает информацию по депозитам, скрипты и данные заявок")
+Rel_D(BankCallCenterSystem, BankCallCenterDb, "Хранит информацию по депозитам, скрипты и данные заявок")
+
+@enduml
