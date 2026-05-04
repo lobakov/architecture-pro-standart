@@ -1,0 +1,22 @@
+@startuml
+!include <C4/C4_Context>
+
+title Диаграмма контекста "Онлайн системы кредитования" банка "Стандарт"
+
+Person(Customer, "Клиент", "Клиент банка, желающий взять кредит")
+
+System_Boundary(BankSystem, "Банк Стандарт") {
+    System(CreditSystem, "Онлайн система кредитования", "Позволяет пользователю оформить заявку на выдачу кредита")
+
+}
+
+System_Ext(CellOperator, "Оператор сотовой связи", "Доставляет СМС клиентам")
+System_Ext(CreditBureau, "Кредитное бюро", "Предоставляет информацию о кредитной истории клиента")
+
+Rel(Customer, CreditSystem, "Оформляет заявку на выдачу кредита")
+Rel(CellOperator, Customer, "Доставляет СМС")
+
+Rel(CreditSystem, Customer, "Обрабатывает заявку на выдачу кредита")
+Rel(CreditSystem, CreditBureau, "Запрашивает кредитную историю клиента")
+Rel(CreditSystem, CellOperator, "Отправляет СМС-оповещения клиентам")
+@enduml

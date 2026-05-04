@@ -1,0 +1,116 @@
+@startuml
+!include <C4/C4_Container>
+
+title Диаграмма контейнеров "Онлайн системы открытия депозитов" банка "Стандарт"
+
+Person(Customer, "Клиент", "Клиент банка, желающий открыть депозит")
+
+System_Boundary(Bank, "Банк Стандарт") {
+    Container(WebSite, "Веб-сайт", "PHP + React.js", "Позволяет оставить заявку на депозит")
+
+    System_Boundary(InternetBank, "Интернет-банк") {
+        Container(OnlineBanking, "Онлайн банкинг", "ASP.NET", "Предоставляет банковские услуги и позволяет оставить заявку на депозит клиентам банка")
+        ContainerDb(OnlineBankingDb, "БД Интернет-банка", "MS SQL", "Хранилище данных для интернет-банка")
+    }
+
+    Person(DepositManager, "Менеджер по депозитам", "Работает с депозитными продуктами")
+
+    System_Boundary(ABS, "АБС") {
+        ContainerDb(ABSDB, "БД АБС", "Oracle", "Выполняет банковские операции и хранит данные")
+    }
+
+    System_Boundary(DepositSystem, "Платформа депозитов") {
+        Container(DepositPanel, "Административная панель", "React.js", "Позволяет менеджерам по депозитам настраивать ставки по депозитам и правила для персонализации предложений")
+        Container(DepositDirectory, "Справочник депозитов", "Java + Spring Boot", "Позволяет настраивать и получать ставки по депозитам")
+        ContainerDb(DepositDirectoryDb, "БД Справочника депозитов", "PostgreSQL", "Хранит текущие и архивные ставки по депозитам")
+        Container(DepositAdviser, "Сервис персонализации ставок по депозитам", "Java + Spring Boot", "Позволяет настраивать правила персонализации и, на основе данных о клиенте, по этим правилам автоматически формировать персонализированные предложения")
+        ContainerDb(DepositAdviserDb, "БД Сервиса персонализации", "PostgreSQL", "Хранит настройки правил, финансовую статистику клиентов и персонализированные предложения")
+        Container(DepositAgent, "Сервис оформления заявок на депозиты", "Java + Spring Boot", "Предоставляет функционал оформления заявок")
+        ContainerDb(DepositAgentDb, "БД Сервиса оформления заявок", "PosrgreSQL", "Хранит информацию о заявках и об имеющихся депозитах пользователей")
+        ContainerDb(RequestsCache, "Кеш запросов клиентов", "Redis", "Кеш запросов из интернет-банка")
+        Container(EtlService, "Сервис для ETL-процессов", "Apache NiFi", "Загружает статистику клиентов из АБС для автоматизированных расчетов персонализированных предложений")
+        ContainerDb(Logging, "Сервис сбора логов", "Loki", "Собирает и хранит логи сервисов")
+        Container(Metrics, "Сервис сбора метрик", "Prometheus", "Собирает и хранит метрики сервисов")
+        Container(Monitoring, "Дашборд мониторинга", "Grafana", "Сервис дашбордов для просмотра логов, визуализации метрик и настройки алертов")
+        Container(Messaging, "Брокер сообщений", "Kafka", "Асинхронный обмен соощениями")
+    }
+
+    Container(SmsGate, "СМС Гейт", "Отправляет СМС-сообщения")
+
+    System_Boundary(BankCallCenter, "Система колл-центра банка") {
+        Person(BankCallCenterManager, "Менеджер колл-центра банка", "Консультирует клиентов по телефону")
+
+        Container(BankCallCenterPanel, "Веб-интерфейс", "React.js", "Интерфейс системы для менеджеров колл-центра")
+        Container(BankCallCenterSystem, "Ядро системы колл-центра", "Java + Spring Boot", "Реализует основной функционал системы колл-центра")
+        ContainerDb(BankCallCenterDb, "БД колл-центра", "PosrgreSQL", "Хранит даные по заявкам")
+    }
+}
+
+System_Boundary(PartnerCallCenter, "Колл-центр партнера") {
+    Person(PartnerCallCenterManager, "Менеджер колл-центра партнера", "Консультирует клиентов по телефону")
+    System_Ext(PartnerCallCenterSystem, "Система колл-центра партнера", "Хранит информацию по заявкам клиентов, ставки депозитов и скрипты для работы менеджеров")
+}
+
+System_Ext(CellOperator, "Оператор сотовой связи", "Доставляет СМС клиентам")
+
+Rel_D(Customer, WebSite, "Оформляет заявку на депозит")
+Rel_D(Customer, OnlineBanking, "Оформляет заявку на депозит")
+Rel_U(CellOperator, Customer, "Доставляет СМС")
+Rel_D(BankCallCenterManager, Customer, "Консультирует клиентов по телефону")
+Rel_D(PartnerCallCenterManager, Customer, "Консультирует клиентов по телефону")
+
+Rel_D(WebSite, DepositDirectory, "Запрашивает ставки по депозитам")
+Rel_D(WebSite, DepositAgent, "Создает заявки на депозит")
+
+Rel_D(OnlineBanking, OnlineBankingDb, "Хранит данные")
+Rel_D(OnlineBanking, DepositDirectory, "Запрашивает ставки по депозитам")
+Rel_D(OnlineBanking, DepositAdviser, "Запрашивает персонализированные предложения")
+Rel_D(OnlineBanking, DepositAgent, "Создает заявки на депозит")
+
+Rel_R(EtlService, ABSDB, "Забирает данные клиентов, загружает заявки на депозит, забирает статусы заявок")
+Rel_U(EtlService, DepositAdviserDb, "Загружает данные клиентов для анализа")
+Rel_U(EtlService, DepositAgentDb, "Загружает статусы заявок и данные по депозитам клиентов")
+Rel_D(EtlService, Messaging, "Отправляет логи")
+Rel_D(EtlService, Metrics, "Отправляет метрики")
+
+Rel_L(DepositAgent, RequestsCache, "Хранит кеш запросов")
+Rel_D(DepositAgent, DepositAgentDb, "Хранит информацию о заявках и депозитах клиентов")
+Rel_D(DepositAgent, EtlService, "Отправляет заявки на депозит")
+Rel_D(DepositAgent, Messaging, "Отправляет оповещения клиентам, заявки в колл-центры, логи")
+Rel_D(DepositAgent, Metrics, "Отправляет метрики")
+
+Rel_L(DepositAdviser, RequestsCache, "Хранит кеш запросов")
+Rel_D(DepositAdviser, DepositAdviserDb, "Получает настройки персонализации и данные для анализа, хранит персонализированные предложения для клиентов")
+Rel_D(DepositAdviser, Messaging, "Отправляет логи")
+Rel_D(DepositAdviser, Metrics, "Отправляет метрики")
+
+Rel_L(DepositDirectory, RequestsCache, "Хранит кеш запросов")
+Rel_D(DepositDirectory, DepositDirectoryDb, "Хранит настройки правил и ставки по депозитам")
+Rel_D(DepositDirectory, Messaging, "Отправляет ставки по депозитам в колл-центры, отправляет логи")
+Rel_D(DepositDirectory, Metrics, "Отправляет метрики")
+
+Rel_D(DepositPanel, DepositDirectory, "Настраивает ставки по депозитам")
+Rel_D(DepositPanel, DepositAdviser, "Настраивает правила персонализации")
+Rel_D(DepositPanel, Messaging, "Отправляет логи")
+Rel_D(DepositPanel, Metrics, "Отправляет метрики")
+
+Rel_R(DepositManager, DepositPanel, "Настраивает ставки по депозитам и правила персонализации")
+Rel_D(DepositManager, ABSDB, "Обрабатывает заявки на депозиты")
+
+Rel_D(Messaging, Logging, "Передает логи")
+Rel_R(Messaging, SmsGate, "Передает сообщения клиентам")
+
+Rel_R(SmsGate, CellOperator, "Отправляет СМС-оповещения клиентам")
+Rel_U(PartnerCallCenterSystem, PartnerCallCenterManager, "Предоставляет ставки по депозитам, данные по заявкам и скрипты для консультации клиентов")
+
+Rel(Messaging, PartnerCallCenterSystem, "Передает ставки по депозитам и данные заявок")
+Rel(Messaging, BankCallCenterSystem, "Передает ставки по депозитам и данные заявок")
+
+Rel_U(Monitoring, Metrics, "Забирает метрики")
+Rel_U(Monitoring, Logging, "Забирает логи")
+
+Rel_D(BankCallCenterManager, BankCallCenterPanel, "Получает информацию по депозитам, скрипты и данные заявок")
+Rel_D(BankCallCenterPanel, BankCallCenterSystem, "Забирает информацию по депозитам, скрипты и данные заявок")
+Rel_D(BankCallCenterSystem, BankCallCenterDb, "Хранит информацию по депозитам, скрипты и данные заявок")
+
+@enduml

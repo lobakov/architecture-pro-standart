@@ -1,0 +1,24 @@
+@startuml
+!include <C4/C4_Context>
+
+title Диаграмма контекста "Онлайн системы открытия депозитов" банка "Стандарт"
+
+Person(Customer, "Клиент", "Клиент банка, желающий открыть депозит")
+
+System_Boundary(BankSystem, "Банк Стандарт") {
+    System(DepositSystem, "Онлайн система открытия депозитов", "Позволяет пользователю открыть депозит")
+    System(BankCallCenter, "Колл-центр банка", "Консультирует клиентов по телефону")
+}
+
+System_Ext(CellOperator, "Оператор сотовой связи", "Доставляет СМС клиентам")
+System_Ext(PartnerCallCenter, "Колл-центр партнера", "Консультирует клиентов в случае загруженности основного колл-центра")
+
+Rel(Customer, DepositSystem, "Оформляет заявку на депозит", "HTTPS")
+Rel(CellOperator, Customer, "Доставляет СМС")
+Rel(PartnerCallCenter, Customer, "Консультирует клиентов по депозитным продуктам")
+Rel(DepositSystem, CellOperator, "Отправляет СМС-оповещения клиентам")
+Rel(DepositSystem, PartnerCallCenter, "Передает данные заявок и поручает консультацию клиентов в случае повышенной загруженности")
+Rel(DepositSystem, BankCallCenter, "Передает оформленную заявку на депозит")
+Rel(DepositSystem, Customer, "Открывает депозит")
+Rel(BankCallCenter, Customer, "Консультирует клиентов по телефону")
+@enduml

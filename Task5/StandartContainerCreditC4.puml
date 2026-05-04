@@ -1,0 +1,111 @@
+@startuml
+!include <C4/C4_Container>
+
+title Диаграмма контейнеров "Онлайн системы кредитования" банка "Стандарт"
+
+Person(Customer, "Клиент", "Клиент банка, желающий открыть кредит")
+
+System_Boundary(Bank, "Банк Стандарт") {
+    Container(WebSite, "Веб-сайт", "PHP + React.js", "Позволяет оставить заявку на кредит")
+
+    System_Boundary(InternetBank, "Интернет-банк") {
+        Container(OnlineBanking, "Онлайн банкинг", "ASP.NET", "Предоставляет банковские услуги и позволяет оставить заявку на кредит клиентам банка")
+        ContainerDb(OnlineBankingDb, "БД Интернет-банка", "MS SQL", "Хранилище данных для интернет-банка")
+    }
+
+    Person(CreditManager, "Менеджер по кредитам", "Работает с кредитными продуктами")
+
+    System_Boundary(ABS, "АБС") {
+        ContainerDb(ABSDB, "БД АБС", "Oracle", "Выполняет банковские операции и хранит данные")
+    }
+
+    System_Boundary(CreditSystem, "Платформа кредитов") {
+        Container(CreditPanel, "Административная панель", "React.js", "Позволяет менеджерам по кредитам настраивать ставки по кредитам и правила для персонализации предложений")
+        Container(CreditDirectory, "Справочник кредитов", "Java + Spring Boot", "Позволяет настраивать и получать ставки по кредитам")
+        ContainerDb(CreditDirectoryDb, "БД Справочника кредитов", "PostgreSQL", "Хранит текущие и архивные ставки по кредитам")
+        Container(CreditAdviser, "Сервис предодобрения кредитов", "Python + Flask", "Позволяет настраивать правила упрощенного одобрения заявок и, на основе данных о клиенте, по этим правилам автоматически формировать предодобренные предложения")
+        ContainerDb(CreditAdviserDb, "БД Сервиса предодобрения кредитов", "PostgreSQL", "Хранит настройки правил, финансовую статистику клиентов и предодобренные кредиты")
+        Container(CreditAgent, "Сервис оформления заявок на кредиты", "Java + Spring Boot", "Предоставляет функционал оформления заявок на кредит")
+        ContainerDb(CreditAgentDb, "БД Сервиса оформления заявок", "PosrgreSQL", "Хранит информацию о заявках и об имеющихся кредитах пользователей")
+        ContainerDb(RequestsCache, "Кеш запросов клиентов", "Redis", "Кеш запросов из интернет-банка")
+        Container(CreditPipeline, "Кредитный конвейер", "Java + Camunda", "Обработка заявок на кредит")
+        ContainerDb(CreditPipelineDb, "БД Кредитного конвейера", "Oracle", "Хранение информации о текущих заявках и номера платежей по кредитам")
+        Container(CreditScore, "Система скоринга", "Python + Flask", "Расчет кредитного рейтинга клиентов")
+        ContainerDb(CreditScroreDb, "БД для системы скоринга", "PosrgreSQL", "Хранит данные и модели для расчета кредитного рейтинга")
+        Container(EtlService, "Сервис для ETL-процессов", "Apache NiFi", "Загружает статистику клиентов из АБС для автоматизированных расчетов персонализированных предложений")
+        ContainerDb(Logging, "Сервис сбора логов", "Loki", "Собирает и хранит логи сервисов")
+        Container(Metrics, "Сервис сбора метрик", "Prometheus", "Собирает и хранит метрики сервисов")
+        Container(Monitoring, "Дашборд мониторинга", "Grafana", "Сервис дашбордов для просмотра логов, визуализации метрик и настройки алертов")
+        Container(Messaging, "Брокер сообщений", "Kafka", "Асинхронный обмен соощениями")
+    }
+
+    Container(SmsGate, "СМС Гейт", "Отправляет СМС-сообщения")
+}
+
+System_Ext(CreditBureau, "Кредитное бюро", "Предоставляет информацию о кредитной истории клиента")
+System_Ext(CellOperator, "Оператор сотовой связи", "Доставляет СМС клиентам")
+
+Rel_D(Customer, WebSite, "Оформляет заявку на кредит")
+Rel_D(Customer, OnlineBanking, "Оформляет заявку на кредит")
+Rel_U(CellOperator, Customer, "Доставляет СМС")
+
+Rel_D(WebSite, CreditDirectory, "Запрашивает ставки по кредитам")
+Rel_D(WebSite, CreditAgent, "Создает заявки на кредит")
+
+Rel_D(OnlineBanking, OnlineBankingDb, "Хранит данные")
+Rel_D(OnlineBanking, CreditDirectory, "Запрашивает ставки по кредитам")
+Rel_D(OnlineBanking, CreditAdviser, "Запрашивает персонализированные предложения")
+Rel_D(OnlineBanking, CreditAgent, "Создает заявки на кредит")
+
+Rel_R(EtlService, ABSDB, "Забирает данные клиентов, загружает заявки на кредит, забирает статусы заявок")
+Rel_U(EtlService, CreditAdviserDb, "Загружает данные клиентов для анализа")
+Rel_U(EtlService, CreditAgentDb, "Загружает статусы заявок и данные по кредитам клиентов")
+Rel_D(EtlService, Messaging, "Отправляет логи")
+Rel_D(EtlService, Metrics, "Отправляет метрики")
+
+Rel_L(CreditAgent, RequestsCache, "Хранит кеш запросов")
+Rel_D(CreditAgent, CreditAgentDb, "Хранит информацию о заявках и кредитах клиентов")
+Rel_D(CreditAgent, Messaging, "Отправляет оповещения клиентам, заявки в колл-центры, логи")
+Rel_D(CreditAgent, Metrics, "Отправляет метрики")
+
+Rel_L(CreditAdviser, RequestsCache, "Хранит кеш запросов")
+Rel_D(CreditAdviser, CreditAdviserDb, "Получает настройки персонализации и данные для анализа, хранит персонализированные предложения для клиентов")
+Rel_D(CreditAdviser, Messaging, "Отправляет логи")
+Rel_D(CreditAdviser, Metrics, "Отправляет метрики")
+
+Rel_L(CreditDirectory, RequestsCache, "Хранит кеш запросов")
+Rel_D(CreditDirectory, CreditDirectoryDb, "Хранит настройки правил и ставки по кредитам")
+Rel_D(CreditDirectory, Messaging, "Отправляет ставки по кредитам в колл-центры, отправляет логи")
+Rel_D(CreditDirectory, Metrics, "Отправляет метрики")
+
+Rel_D(CreditPanel, CreditDirectory, "Настраивает ставки по кредитам")
+Rel_D(CreditPanel, CreditAdviser, "Настраивает правила персонализации")
+Rel_D(CreditPanel, Messaging, "Отправляет логи")
+Rel_D(CreditPanel, Metrics, "Отправляет метрики")
+
+Rel_R(CreditManager, CreditPanel, "Настраивает ставки по кредитам и правила персонализации")
+Rel_D(CreditManager, ABSDB, "Обрабатывает заявки на кредиты")
+
+Rel_D(Messaging, Logging, "Передает логи")
+Rel_R(Messaging, SmsGate, "Передает сообщения клиентам")
+
+Rel_R(SmsGate, CellOperator, "Отправляет СМС-оповещения клиентам")
+
+Rel_U(Monitoring, Metrics, "Забирает метрики")
+Rel_U(Monitoring, Logging, "Забирает логи")
+
+Rel(CreditAgent, CreditPipeline, "Создает заявку на кредит")
+
+Rel(CreditPipeline, CreditScore, "Запрашивает кредитный рейтинг клиента")
+Rel(CreditPipeline, ABSDB, "Запрашивает данные клиентов, передает на исполнение одобренные заявки")
+Rel_D(CreditPipeline, Messaging, "Отправляет оповещения клиентам, логи")
+Rel_D(CreditPipeline, Metrics, "Отправляет метрики")
+
+Rel(CreditScore, CreditBureau, "Запрашивает кредитную историю клиента")
+Rel(CreditScore, ABSDB, "Запрашивает данные клиентов")
+Rel_D(CreditAgent, Messaging, "Отправляет оповещения клиентам, логи")
+Rel_D(CreditAgent, Metrics, "Отправляет метрики")
+
+Rel(CreditAdviser, CreditBureau, "Запрашивает кредитную историю клиента")
+
+@enduml
